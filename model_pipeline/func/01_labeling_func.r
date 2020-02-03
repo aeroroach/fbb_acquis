@@ -5,7 +5,7 @@
 # MAGIC `labeling_data()`
 # MAGIC 
 # MAGIC Table sources
-# MAGIC + `prod_raw.fbb_x_sell_for_serenade` - Campaign label and gathering latest months of campaign data
+# MAGIC + `prod_delta.fbb_x_sell_for_serenade` - Campaign label and gathering latest months of campaign data
 # MAGIC 
 # MAGIC There's some issues that need to be taken care of
 # MAGIC + Duplicate of `crm_sub_id` and `contact_status` : It's joinig problem from other table that can be solved by distinct both column.
@@ -13,11 +13,11 @@
 
 # COMMAND ----------
 
-labeling_data <- function (in_table = "prod_raw.fbb_x_sell_for_serenade", 
+labeling_data <- function (in_table = "prod_delta.fbb_x_sell_for_serenade", 
                            month_lag = 1) {
   
   # composite table
-  prof_table <- "prod_raw.dm07_sub_clnt_info"
+  prof_table <- "prod_delta.dm07_sub_clnt_info"
   
   # Target month
   label_begin <- floor_date(today() %m-% months(month_lag + 1), unit="month")
