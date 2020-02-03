@@ -27,12 +27,12 @@ prep_data <- function(dt_input = NULL,
   print(paste("Target month begin is :", end_month))
   
   # List of original source tables
-  prof_table <- "prod_raw.dm07_sub_clnt_info"
-  app_table <- "prod_raw.dm09041_du_sum_usage_by_app_monthly"
-  usage_table <- "prod_raw.dm09_mobile_day_split"
+  prof_table <- "prod_delta.dm07_sub_clnt_info"
+  app_table <- "prod_delta.dm09041_du_sum_usage_by_app_monthly"
+  usage_table <- "prod_delta.dm09_mobile_day_split"
   hh_aggregation_table <- "mck_fmc.hh_aggregation"
-  pack_info_table <- "prod_raw.dm26_postpaid_pack_info"
-  fbb_table <- "prod_raw.dm306_fbb_main_table_predict"
+  pack_info_table <- "prod_delta.dm26_postpaid_pack_info"
+  fbb_table <- "prod_delta.dm306_fbb_main_table_predict"
   
   # Export directory
   top_app_master <- "/dbfs/mnt/cvm02/user/pitchaym/share/top_app_master.csv"
@@ -289,9 +289,9 @@ feat_enhance <- function(data_input,
                     his_time = 6, training = T) {
   
   # Table sources
-  prof_table <- "prod_raw.dm07_sub_clnt_info"
+  prof_table <- "prod_delta.dm07_sub_clnt_info"
   hh_aggregation_table <- "mck_fmc.hh_aggregation"
-  pack_info_table <- "prod_raw.dm26_postpaid_pack_info"
+  pack_info_table <- "prod_delta.dm26_postpaid_pack_info"
   
   # Target month
   oldest_month <- ceiling_date(today() %m-% months(his_time), unit="month") %m-% days(1)
