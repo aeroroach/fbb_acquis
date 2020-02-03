@@ -13,7 +13,7 @@ hh_gen <- function(lag_time = 1) {
   end_month <- ceiling_date(today() %m-% months(lag_time), unit="month") %m-% days(1)
   
   # Loading data
-  hh <- tbl(sc, "prod_raw.dm302_mobile_post_pre_household")
+  hh <- tbl(sc, "prod_delta.dm302_mobile_post_pre_household")
   
   # Checkine latest data
   hh_test <- tbl(sc, output_tbl)
