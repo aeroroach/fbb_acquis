@@ -1,5 +1,10 @@
 # Databricks notebook source
 lag_shift <- as.numeric(dbutils.widgets.get("lag_shift"))
+
+# Production
+# dbutils.widgets.remove("lag_shift")
+# lag_shift <- 0 
+
 lag_shift
 
 # COMMAND ----------
@@ -131,4 +136,4 @@ list_export()
 # COMMAND ----------
 
 # MAGIC %fs
-# MAGIC head dbfs:/mnt/cvm02/cvm_output/MCK/FMC/CAMPAIGN/FMC_post_202001_SCORE.txt
+# MAGIC head dbfs:/mnt/cvm02/cvm_output/MCK/FMC/CAMPAIGN/FMC_post_202002_SCORE.txt
