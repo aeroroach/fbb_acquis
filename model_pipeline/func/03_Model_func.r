@@ -187,7 +187,8 @@ list_export <- function(path = "/mnt/cvm02/cvm_output/MCK/FMC/CAMPAIGN/h2o/",
         fmc_percentile = ntile(fmc_score, 100),
         fmc_decile = 11-fmc_decile, 
         fmc_percentile = 101-fmc_percentile,
-        charge_type = "Post-paid") -> dt
+        charge_type = "Post-paid",
+        model = "cvm") -> dt
   
   dt %>%
   sdf_coalesce(1) -> dt_export
