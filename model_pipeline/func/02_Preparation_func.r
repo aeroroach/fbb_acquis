@@ -104,7 +104,7 @@ prep_data <- function(dt_input = NULL,
     fbb %>%
     distinct(ddate) %>%
     arrange(desc(ddate)) %>%
-    top_n(1) %>%
+    filter(min_rank(analytic_id) <= 1) %>%
     collect() -> current_fbb
     current_fbb <- current_fbb$ddate[1]
     
@@ -430,7 +430,7 @@ dt_cleansing <- function (dt_input, training = T) {
       filter(!is.na(crm_most_usage_province)) %>%
       count(crm_most_usage_province) %>%
       arrange(desc(n)) %>%
-      top_n(50) %>%
+      filter(min_rank(crm_most_usage_province) <= 50) %>%
       collect() -> most_province
     
       write_csv(most_province, top_province_export)
@@ -440,10 +440,12 @@ dt_cleansing <- function (dt_input, training = T) {
   }
   
   # Regroup province
+  most_province <- most_province$crm_most_usage_province
+  
   base_clean %>%
   mutate(top30_province = case_when(
   is.na(crm_most_usage_province) ~ "Others", 
-  crm_most_usage_province %in% most_province$crm_most_usage_province ~ crm_most_usage_province, 
+  crm_most_usage_province %in% most_province ~ crm_most_usage_province,
   TRUE ~ "Others")) %>%
   select(-crm_most_usage_province) -> base_clean
   
