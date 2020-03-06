@@ -103,8 +103,7 @@ prep_data <- function(dt_input = NULL,
     fbb <- tbl(sc, fbb_table)
     fbb %>%
     distinct(ddate) %>%
-    arrange(desc(ddate)) %>%
-    filter(min_rank(analytic_id) <= 1) %>%
+    filter(ddate == max(ddate)) %>%
     collect() -> current_fbb
     current_fbb <- current_fbb$ddate[1]
     
