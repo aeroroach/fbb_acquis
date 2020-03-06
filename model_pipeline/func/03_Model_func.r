@@ -126,8 +126,7 @@ model_scoring <- function(dt_input, fraud_cut = 1,
     fraud %>%
     distinct(ddate) %>%
     mutate(ddate = to_date(ddate)) %>%
-    arrange(desc(ddate)) %>%
-    filter(min_rank(analytic_id) <= 1) %>%
+    filter(ddate == max(ddate)) %>%
     collect() -> fraud_latest
 
     fraud_latest <- fraud_latest$ddate
