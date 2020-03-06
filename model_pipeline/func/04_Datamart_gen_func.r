@@ -20,8 +20,7 @@ hh_gen <- function(lag_time = 1) {
   
   hh_test %>%
   distinct(ddate) %>%
-  arrange(desc(ddate)) %>%
-  top_n(1) %>%
+  filter(ddate == max(ddate)) %>%
   collect() -> latest_ddate
   latest_ddate <- latest_ddate$ddate[1]
   
@@ -65,11 +64,6 @@ hh_gen <- function(lag_time = 1) {
     spark_write_table(hh_final, output_tbl, mode = "append")
     
     print(paste("New month(ddate) has been appended :", end_month))
-    
-    hh_final %>%
-    distinct(ddate) %>%
-    arrange(desc(ddate)) %>%
-    top_n(5)
     
   } else {
     
