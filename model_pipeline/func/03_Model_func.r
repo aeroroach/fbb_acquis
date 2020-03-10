@@ -26,95 +26,104 @@ model_training <- function (dt_input, lag_time = 4, sample_frac = 0.5) {
   
   dt_down <- sdf_bind_rows(dt_0, dt_1)
   
-  dt_hex <- as_h2o_frame(sc, dt_down)
-  
-  # Casting ---------------------
-  # Label
-  dt_hex$camp_response <- as.factor(dt_hex$camp_response)
-
-  # Predictor
-  dt_hex$mnp_flag <- as.factor(dt_hex$mnp_flag)
-  dt_hex$gender <- as.factor(dt_hex$gender)
-  dt_hex$handset_os <- as.factor(dt_hex$handset_os)
-  dt_hex$serenade <- as.factor(dt_hex$serenade)
-  dt_hex$top30_province <- as.factor(dt_hex$top30_province)
-  dt_hex$new_pack_cat <- as.factor(dt_hex$new_pack_cat)
-  
-  # Define relevance variables
-  var_list <- h2o.names(dt_hex)
-  ommit_var <- c(-1:-5)
-  var_model <- var_list[ommit_var]
-  
-  # Logging feature
-  write(var_model, file = "fmc_var.txt")
-  mlflow_log_artifact("fmc_var.txt")
-  
   # Splitting data frame
-  dt.split <- h2o.splitFrame(dt_hex, ratios = 0.75, seed = 567)
+  dt_down %>%
+  sdf_partition(train = 0.75, test = 0.25, seed = 789) -> partition
   
-  dt.train <- dt.split[[1]]
-  dt.test <- dt.split[[2]]
-  
+  sdf_register(partition$train, "train_set")
+  tbl_cache(sc, "train_set")
   
   # Hyper parameter list
-  ntrees <- 400
-  learn_rate <- 0.01
+  max_iter <- 400
+  step_size <- 0.01
   max_depth <- 8
-  sample_rate <- 0.8
-  col_sample_rate <- 0.61
+  subsampling_rate <- 0.8
   
   # Logging hyper parameter
-  mlflow_log_param("ntrees", ntrees)
-  mlflow_log_param("learn_rate", learn_rate)
+  mlflow_log_param("max_iter", max_iter)
+  mlflow_log_param("step_size", step_size)
   mlflow_log_param("max_depth", max_depth)
-  mlflow_log_param("sample_rate", sample_rate)
-  mlflow_log_param("col_sample_rate", col_sample_rate)
+  mlflow_log_param("subsampling_rate", subsampling_rate)
   
-  best_xg <- h2o.xgboost(training_frame = dt.train , 
-                          x = var_model , 
-                          y = "camp_response" , 
-                          validation_frame = dt.test , 
-                          ntrees = ntrees ,
-                          learn_rate = learn_rate ,
-                          max_depth = max_depth ,
-                          sample_rate = sample_rate ,
-                          col_sample_rate = col_sample_rate , 
-                          seed = 567
-                         )
+  gbt_model <- ml_gbt_classifier(partition$train, 
+                               camp_response ~ . -analytic_id -crm_sub_id -national_id -register_date, 
+                               step_size = step_size,
+                               max_depth = max_depth, 
+                               subsampling_rate = subsampling_rate,
+                               max_iter = max_iter
+                               )
   
-  xg_perf <- h2o.performance(best_xg, newdata = dt.test)
-  fmc_auc <- h2o.auc(xg_perf)
-  print(paste("AUC is :", fmc_auc))
+  # Validate model result
+  pred <- ml_predict(gbt_model, partition$test)
+  pred %>%
+  select(analytic_id, register_date, camp_response, probability_1) -> pred
   
-  # Logging metrics
-  mlflow_log_metric("AUC", fmc_auc)
+  gbt_auc <- ml_binary_classification_eval(pred_mod, "camp_response", "probability_1", metric = "areaUnderROC")
+  print(paste("AUC is :", gbt_auc))
   
+  # Logging AUC
+  mlflow_log_metric("AUC", gbt_auc)
+  
+  # Get prior prob
+  pred_mod %>%
+  summarise(prior_prob = mean(camp_response)) %>%
+  collect() -> prior_prob
+
+  prior_prob <- prior_prob$prior_prob
+  
+  # Calculate lift table and logging
+  pred %>%
+  rename(score = probability_1) %>%
+  mutate(decile = ntile(score, n=10), 
+         decile = 11-decile) %>%
+  group_by(decile) %>%
+  summarise(no_subs = n(), 
+            lower_bound = min(score),
+            no_response = sum(camp_response),
+            prop_response = mean(camp_response),
+           ) %>%
+  arrange(decile) %>%
+  mutate(cum_sub = cumsum(no_subs),
+         cum_response = cumsum(no_response),
+         cum_response_rate = cum_response/cum_sub,
+         lift = cum_response_rate/prior_prob) %>%
+  collect() -> lift_tbl
+  write_csv(lift_tbl, "fmc_lift.csv")
+  mlflow_log_artifact("fmc_lift.csv")      
+  
+  # Plotting ROC curve and logging
+  library(pROC)
+  pred_mod %>%
+  collect() -> pred_R
+        
   png("fmc_auc.png")
-  plot(xg_perf,type='roc')
+  roc(pred_R$camp_response,pred_R$probability_1,
+    smoothed = TRUE,
+    # arguments for ci
+    ci=TRUE, ci.alpha=0.95, stratified=FALSE,
+    # arguments for plot
+    plot=TRUE, auc.polygon=TRUE, grid=TRUE,
+    print.auc=TRUE, show.thres=TRUE,
+    thresholds = "best", print.thres="best"
+    )
   dev.off()
   mlflow_log_artifact("fmc_auc.png")
   
-  write_csv(h2o.varimp(best_xg), "fmc_varimp.csv")
+  var_im <- ml_feature_importances(gbt_model)
+  write_csv(var_im, "fmc_varimp.csv")
   mlflow_log_artifact("fmc_varimp.csv")
   
-  write_csv(h2o.gainsLift(best_xg, newdata = dt.test), "fmc_lift.csv")
-  mlflow_log_artifact("fmc_lift.csv")
-  
-  return(best_xg)
+  return(gbt_model)
 }
 
 # COMMAND ----------
 
-model_scoring <- function(dt_input, fraud_cut = 1, 
-                         model_path = "/dbfs/mnt/cvm02/user/pitchaym/h2o_model_fbb/") {
+model_scoring <- function(dt_input, fraud_cut = 0, 
+                         model_path = "/mnt/cvm02/user/pitchaym/spark_model_fbb/") {
   
   fraud_table <- "default.fbb_fraud_model_output"
-  gen_dir <- "/dbfs/mnt/cvm02/cvm_output/MCK/FMC/CAMPAIGN/h2o"
   
-  target_model <- list.files(model_path, pattern = "model")
-  target_model <- paste0(model_path, target_model)
-  
-  classifier <- h2o.loadModel(target_model)
+  gbt_pipeline <- ml_load(sc, model_path)
   
   # Finding latest fraud score
   if (fraud_cut > 0) {
@@ -139,12 +148,10 @@ model_scoring <- function(dt_input, fraud_cut = 1,
 
     # Exclude fraud people and convert register date type
     dt_input %>%
-    anti_join(fraud_ex, by = c("analytic_id", "register_date")) %>%
-    mutate(register_date = as.character(register_date)) -> dt_score
+    anti_join(fraud_ex, by = c("analytic_id", "register_date")) -> dt_score
     
   } else {
-    dt_input %>%
-    mutate(register_date = as.character(register_date)) -> dt_score
+    dt_score <- dt_input
   }
   
   count(dt_score) %>%
@@ -152,35 +159,24 @@ model_scoring <- function(dt_input, fraud_cut = 1,
   temp <- temp$n
   print(paste("Total rows of data after filter :", temp))
   
-  # Casting variables
-  dt_score_hex <- as_h2o_frame(sc, dt_score)
+  # Prediction
+  pred <- ml_transform(gbt_pipeline, dt)
   
-  dt_score_hex$mnp_flag <- as.factor(dt_score_hex$mnp_flag)
-  dt_score_hex$gender <- as.factor(dt_score_hex$gender)
-  dt_score_hex$handset_os <- as.factor(dt_score_hex$handset_os)
-  dt_score_hex$serenade <- as.factor(dt_score_hex$serenade)
-  dt_score_hex$top30_province <- as.factor(dt_score_hex$top30_province)
-  dt_score_hex$new_pack_cat <- as.factor(dt_score_hex$new_pack_cat)
-  
-  pred <- h2o.predict(object = classifier, newdata = dt_score_hex)
-  pred$p1 <- round(pred$p1, digit = 4)
-  pred <- h2o.cbind(dt_score_hex[,c("crm_sub_id", "analytic_id", "register_date")],pred[,"p1"])
-  
-  unlink(gen_dir, recursive= T)
-  
-  h2o.exportFile(pred, gen_dir, parts = -1)
+  pred %>%
+  select(crm_sub_id, analytic_id, register_date, probability) %>%
+  sdf_separate_column("probability", c("prob_no", "fmc_score")) %>%
+  select(-probability, -prob_no) -> pred_extract
+
+  return(pred_extract)
   
 }
 
 # COMMAND ----------
 
-list_export <- function(path = "/mnt/cvm02/cvm_output/MCK/FMC/CAMPAIGN/h2o/", 
+list_export <- function(dt_input, 
                        gen_dir = "/mnt/cvm02/cvm_output/MCK/FMC/CAMPAIGN/") {
   
-  dt <- spark_read_csv(sc, "score", path, delimiter = ",")
-  
-  dt %>%
-  rename(fmc_score = p1) %>%
+  dt_input %>%
   mutate(register_date = to_date(register_date), 
         fmc_decile = ntile(fmc_score, 10),
         fmc_percentile = ntile(fmc_score, 100),
@@ -202,7 +198,6 @@ list_export <- function(path = "/mnt/cvm02/cvm_output/MCK/FMC/CAMPAIGN/h2o/",
             to = file.path(paste0("/dbfs", gen_dir, file_name)))
   
   unlink(paste0("/dbfs", gen_dir, "/post/"), recursive = T)
-  unlink(paste0("/dbfs", gen_dir, "/h2o/"), recursive = T)
   
   print(paste(file_name, "has been written"))
   glimpse(dt)
