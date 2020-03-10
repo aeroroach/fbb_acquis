@@ -245,12 +245,12 @@ prep_data <- function(dt_input = NULL,
 
     # Select relevance features ----------------------------
     prof %>% select(analytic_id, national_id, crm_sub_id, activation_date, ddate,
-                 age, credit_limit, days_active, service_month, foreigner_flag, gender, 
-                 mnp_flag, master_segment_id, crm_most_usage_province, 
-                 handset_launchprice, handset_os, 
+                 age, credit_limit, days_active, service_month, 
+                 master_segment_id, 
+                 handset_launchprice, 
                  norms_net_revenue_avg_3mth_p0_p2, norms_net_revenue_gprs, norms_net_revenue_vas, norms_net_revenue_voice) -> prof
 
-    pack_info %>% select(analytic_id, ddate, data_3g_usage_mb, data_4g_usage_mb, data_traffic_subs_mb, new_pack_cat, 
+    pack_info %>% select(analytic_id, ddate, data_3g_usage_mb, data_4g_usage_mb, data_traffic_subs_mb, 
                         mou_ic_total, mou_og_intl, mou_og_roaming, mou_og_total, 
                         num_of_days_data_used, sms_og_total, distinct_out_number) -> pack_info
 
@@ -370,21 +370,14 @@ dt_cleansing <- function (dt_input, training = T) {
     ft_imputer(input_cols=im_mean, output_cols=im_mean, strategy="mean") %>%
     select(analytic_id, crm_sub_id, camp_response, national_id, register_date, 
            age, handset_launchprice, credit_limit, 
-      mnp_flag, master_segment_id, crm_most_usage_province) -> mean_im
+           master_segment_id) -> mean_im
   } else {
     dt_trans %>%
     ft_imputer(input_cols=im_mean, output_cols=im_mean, strategy="mean") %>%
     select(analytic_id, crm_sub_id, national_id, register_date, 
            age, handset_launchprice, credit_limit, 
-      mnp_flag, master_segment_id, crm_most_usage_province) -> mean_im
+           master_segment_id) -> mean_im
   }
-  
-  
-  
-  # Unknown imputing
-  dt_trans %>%
-  select(analytic_id, gender, handset_os, new_pack_cat) %>%
-  na.replace("unknown") -> unknown_im
  
   # Zero imputing
   dt_trans %>%
@@ -397,7 +390,6 @@ dt_cleansing <- function (dt_input, training = T) {
   
   # Joining back
   mean_im %>%
-  left_join(unknown_im, by = "analytic_id") %>%
   left_join(zero_im, by = "analytic_id") -> base_clean
   
   # Regroup ----------------------------
@@ -412,41 +404,6 @@ dt_cleansing <- function (dt_input, training = T) {
     master_segment_id == "Standard" ~ "Classic",
     TRUE ~ master_segment_id)) %>%
   select(-master_segment_id) -> base_clean
-  
-  # Handset os
-  base_clean %>%
-  mutate(handset_os = case_when(
-  handset_os %in% c("Android", "iOS", "Proprietary", "Unknown") ~ handset_os, 
-  TRUE ~ "others")) -> base_clean
-  
-  # MNP flag
-  base_clean %>%
-  mutate(mnp_flag = ifelse(is.na(mnp_flag),"N" , mnp_flag)) -> base_clean
-  
-  # Checking for training and scoring process
-  if (training == T) {
-      base_clean %>%
-      filter(!is.na(crm_most_usage_province)) %>%
-      count(crm_most_usage_province) %>%
-      arrange(desc(n)) %>%
-      filter(min_rank(crm_most_usage_province) <= 50) %>%
-      collect() -> most_province
-    
-      write_csv(most_province, top_province_export)
-    
-  } else {
-    most_province <- read_csv(top_province_export)
-  }
-  
-  # Regroup province
-  most_province <- most_province$crm_most_usage_province
-  
-  base_clean %>%
-  mutate(top30_province = case_when(
-  is.na(crm_most_usage_province) ~ "Others", 
-  crm_most_usage_province %in% most_province ~ crm_most_usage_province,
-  TRUE ~ "Others")) %>%
-  select(-crm_most_usage_province) -> base_clean
   
   sdf_register(base_clean, "base_clean")
   tbl_cache(sc, "base_clean")
