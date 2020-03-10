@@ -26,7 +26,6 @@ library(dplyr)
 library(lubridate)
 library(sparklyr)
 library(readr)
-library(mlflow)
 
 # COMMAND ----------
 
@@ -114,12 +113,16 @@ glimpse(dt_final)
 
 # COMMAND ----------
 
-# MAGIC %md ## 5: Model training
+count(dt_final)
 
 # COMMAND ----------
 
-library(h2o)
-library(rsparkling)
+# DBTITLE 1,Writing single table
+spark_write_table(dt_final, "mck_fmc.te01_postpaid_training", mode = "overwrite")
+
+# COMMAND ----------
+
+# MAGIC %md ## 5: Model training
 
 # COMMAND ----------
 
@@ -127,22 +130,27 @@ library(rsparkling)
 
 # COMMAND ----------
 
-model_path <- "/dbfs/mnt/cvm02/user/pitchaym/h2o_model_fbb/"
+library(mlflow)
+install_mlflow()
+
+# COMMAND ----------
+
+model_path <- "/mnt/cvm02/user/pitchaym/spark_model_fbb/"
 
 # COMMAND ----------
 
 # ML flow start log
 mlflow_start_run()
 
-best_xg <- model_training(dt_final, lag_time = 4 + lag_shift)
+gbt_model <- model_training(dt_final, lag_time = 4 + lag_shift)
 
 # ML flow end log
 mlflow_end_run()
 
 # COMMAND ----------
 
-# MAGIC %sh rm /dbfs/mnt/cvm02/user/pitchaym/h2o_model_fbb/*
+# MAGIC %fs rm -r /mnt/cvm02/user/pitchaym/spark_model_fbb/
 
 # COMMAND ----------
 
-h2o.saveModel(best_xg, model_path, force = T)
+ml_save(gbt_model, "/mnt/cvm02/user/pitchaym/spark_model_fbb/")
