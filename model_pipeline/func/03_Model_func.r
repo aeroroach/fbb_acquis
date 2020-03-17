@@ -105,7 +105,7 @@ model_training <- function (dt_input, lag_time = 4, sample_frac = 0.5) {
 
 # COMMAND ----------
 
-model_scoring <- function(dt_input, fraud_cut = 1, 
+model_scoring <- function(dt_input, fraud_cut = 0, 
                          model_path = "/dbfs/mnt/cvm02/user/pitchaym/h2o_model_fbb/") {
   
   fraud_table <- "default.fbb_fraud_model_output"
@@ -126,8 +126,7 @@ model_scoring <- function(dt_input, fraud_cut = 1,
     fraud %>%
     distinct(ddate) %>%
     mutate(ddate = to_date(ddate)) %>%
-    arrange(desc(ddate)) %>%
-    top_n(1) %>%
+    filter(ddate == max(ddate)) %>%
     collect() -> fraud_latest
 
     fraud_latest <- fraud_latest$ddate
