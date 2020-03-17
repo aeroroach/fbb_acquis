@@ -48,7 +48,7 @@ labeling_data <- function (in_table = "prod_delta.fbb_x_sell_for_serenade",
   select(-n) %>%
   group_by(crm_sub_id, camp_response) %>%
   arrange(cam_month) %>%
-  top_n(-1) %>% 
+  filter(min_rank(crm_sub_id) <= 1) %>%
   mutate(prof_month = add_months(cam_month, -2)) -> response_clean
   
   # Analytic ID mapping
@@ -66,9 +66,6 @@ labeling_data <- function (in_table = "prod_delta.fbb_x_sell_for_serenade",
   response_clean %>%
   left_join(prof, by=c("crm_sub_id", "prof_month"="ddate")) %>%
   ungroup() -> response_clean
-  
-  sdf_register(response_clean, "response_tbl")
-  tbl_cache(sc, "response_tbl")
   
   return(response_clean)
   
