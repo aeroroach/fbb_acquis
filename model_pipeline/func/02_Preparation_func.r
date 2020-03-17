@@ -103,8 +103,7 @@ prep_data <- function(dt_input = NULL,
     fbb <- tbl(sc, fbb_table)
     fbb %>%
     distinct(ddate) %>%
-    arrange(desc(ddate)) %>%
-    top_n(1) %>%
+    filter(ddate == max(ddate)) %>%
     collect() -> current_fbb
     current_fbb <- current_fbb$ddate[1]
     
@@ -380,11 +379,13 @@ dt_cleansing <- function (dt_input, training = T) {
       mnp_flag, master_segment_id, crm_most_usage_province) -> mean_im
   }
   
-  
-  
   # Unknown imputing
   dt_trans %>%
   select(analytic_id, gender, handset_os, new_pack_cat) %>%
+  mutate(gender = case_when(
+    gender %in% c("Male", "Female") ~ gender,
+    TRUE ~ "unknown"
+  )) %>%
   na.replace("unknown") -> unknown_im
  
   # Zero imputing
@@ -430,7 +431,7 @@ dt_cleansing <- function (dt_input, training = T) {
       filter(!is.na(crm_most_usage_province)) %>%
       count(crm_most_usage_province) %>%
       arrange(desc(n)) %>%
-      top_n(50) %>%
+      filter(min_rank(crm_most_usage_province) <= 30) %>%
       collect() -> most_province
     
       write_csv(most_province, top_province_export)
@@ -440,10 +441,12 @@ dt_cleansing <- function (dt_input, training = T) {
   }
   
   # Regroup province
+  most_province <- most_province$crm_most_usage_province
+  
   base_clean %>%
   mutate(top30_province = case_when(
   is.na(crm_most_usage_province) ~ "Others", 
-  crm_most_usage_province %in% most_province$crm_most_usage_province ~ crm_most_usage_province, 
+  crm_most_usage_province %in% most_province ~ crm_most_usage_province,
   TRUE ~ "Others")) %>%
   select(-crm_most_usage_province) -> base_clean
   
