@@ -9,6 +9,17 @@ lag_shift
 
 # COMMAND ----------
 
+# DBTITLE 1,Delay time
+# delay <- function(x)
+# {
+#     p1 <- proc.time()
+#     Sys.sleep(x)
+#     proc.time() - p1 # The cpu usage should be negligible
+# }
+# delay(240)
+
+# COMMAND ----------
+
 # MAGIC %md # Scoring data for FBB postpaid acquisition project
 # MAGIC 
 # MAGIC This notebokk illustrate the pipeline of new data scoring. All the dependencies functions has been kept in `./func/`.
@@ -114,7 +125,7 @@ h2o_context(sc)
 
 # COMMAND ----------
 
-model_scoring(dt_final, fraud_cut = 1)
+model_scoring(dt_final, fraud_cut = 0)
 
 # COMMAND ----------
 
@@ -136,4 +147,4 @@ list_export()
 # COMMAND ----------
 
 # MAGIC %fs
-# MAGIC head dbfs:/mnt/cvm02/cvm_output/MCK/FMC/CAMPAIGN/FMC_post_202002_SCORE.txt
+# MAGIC head dbfs:/mnt/cvm02/cvm_output/MCK/FMC/CAMPAIGN/FMC_post_202003_SCORE.txt
