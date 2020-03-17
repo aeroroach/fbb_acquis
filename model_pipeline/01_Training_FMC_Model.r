@@ -26,7 +26,6 @@ library(dplyr)
 library(lubridate)
 library(sparklyr)
 library(readr)
-library(mlflow)
 
 # COMMAND ----------
 
@@ -120,6 +119,11 @@ glimpse(dt_final)
 
 library(h2o)
 library(rsparkling)
+
+# COMMAND ----------
+
+library(mlflow)
+install_mlflow()
 
 # COMMAND ----------
 
