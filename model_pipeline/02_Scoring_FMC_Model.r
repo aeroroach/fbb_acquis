@@ -107,6 +107,14 @@ glimpse(dt_final)
 
 # COMMAND ----------
 
+spark_write_table(dt_final, "mck_fmc.te02_postpaid_scoring", mode = "overwrite")
+
+# COMMAND ----------
+
+dt_final <- tbl(sc, "mck_fmc.te02_postpaid_scoring")
+
+# COMMAND ----------
+
 # MAGIC %md ## 5: Model training
 
 # COMMAND ----------
