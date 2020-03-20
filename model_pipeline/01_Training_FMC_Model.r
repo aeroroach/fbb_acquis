@@ -113,6 +113,15 @@ glimpse(dt_final)
 
 # COMMAND ----------
 
+# DBTITLE 1,Writing final table
+spark_write_table(dt_final, "mck_fmc.te01_postpaid_training", mode = "overwrite")
+
+# COMMAND ----------
+
+dt_final <- tbl(sc, "mck_fmc.te01_postpaid_training")
+
+# COMMAND ----------
+
 # MAGIC %md ## 5: Model training
 
 # COMMAND ----------
