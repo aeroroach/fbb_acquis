@@ -6,7 +6,8 @@
 # MAGIC This notebook consist with list of functions below.
 # MAGIC 1. `model_training()` : Train the model by H2O XGboost
 # MAGIC 2. `model_scoring()` : Scoring the model from the model object
-# MAGIC 3. `list_export()` : Export the list for campaign
+# MAGIC 3. `map_rtc()` : Mapping with right time to call output
+# MAGIC 4. `list_export()` : Export the list for campaign
 
 # COMMAND ----------
 
@@ -174,12 +175,34 @@ model_scoring <- function(dt_input, fraud_cut = 0,
 
 # COMMAND ----------
 
-list_export <- function(path = "/mnt/cvm02/cvm_output/MCK/FMC/CAMPAIGN/h2o/", 
+map_rtc <- function(dt_input, rtc_tbl = "prod_delta.rtc_postpaid") {
+  
+  # Rtc output loading
+  rtc_tbl <- "prod_delta.rtc_postpaid"
+  rtc <- tbl(sc, rtc_tbl)
+  rtc %>%
+  filter(month_id == max(month_id)) %>%
+  select(-month_id) -> rtc
+  
+  sdf_register(rtc, "rtc")
+  tbl_cache(sc, "rtc")
+  
+  # Joining table
+  dt_input %>%
+  left_join(rtc, by = c("crm_sub_id")) %>%
+  rename(time2call = prefer_time) %>%
+  mutate(time2call = ifelse(is.na(time2call), "anytime", time2call)) -> dt
+  
+  return(dt)
+  
+}
+
+# COMMAND ----------
+
+list_export <- function(dt_input, 
                        gen_dir = "/mnt/cvm02/cvm_output/MCK/FMC/CAMPAIGN/") {
   
-  dt <- spark_read_csv(sc, "score", path, delimiter = ",")
-  
-  dt %>%
+  dt_input %>%
   rename(fmc_score = p1) %>%
   mutate(register_date = to_date(register_date), 
         fmc_decile = ntile(fmc_score, 10),
@@ -188,6 +211,11 @@ list_export <- function(path = "/mnt/cvm02/cvm_output/MCK/FMC/CAMPAIGN/h2o/",
         fmc_percentile = 101-fmc_percentile,
         charge_type = "Post-paid",
         model = "cvm") -> dt
+  
+  # Reorder column
+  dt %>%
+  select(crm_sub_id, analytic_id, register_date, fmc_score, fmc_decile, fmc_percentile, charge_type, 
+        model, time2call) -> dt
   
   dt %>%
   sdf_coalesce(1) -> dt_export
