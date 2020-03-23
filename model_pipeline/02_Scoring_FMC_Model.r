@@ -141,11 +141,23 @@ model_scoring(dt_final, fraud_cut = 0)
 
 # COMMAND ----------
 
+dt_spark <- spark_read_csv(sc, "score", "/mnt/cvm02/cvm_output/MCK/FMC/CAMPAIGN/h2o/", delimiter = ",")
+
+# COMMAND ----------
+
 # MAGIC %md ## 6: Export files
 
 # COMMAND ----------
 
-list_export()
+dt_spark <- map_rtc(dt_spark)
+
+# COMMAND ----------
+
+glimpse(dt_spark)
+
+# COMMAND ----------
+
+list_export(dt_spark)
 
 # COMMAND ----------
 
