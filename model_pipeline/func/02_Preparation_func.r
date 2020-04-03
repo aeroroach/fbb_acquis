@@ -32,7 +32,7 @@ prep_data <- function(dt_input = NULL,
   usage_table <- "prod_delta.dm09_mobile_day_split"
   hh_aggregation_table <- "mck_fmc.hh_aggregation"
   pack_info_table <- "prod_delta.dm26_postpaid_pack_info"
-  fbb_table <- "prod_delta.dm2100_fbb_active_sub"
+  fbb_table <- "prod_delta.dm2100_fbb_active_sub_monthly"
   
   # Export directory
   top_app_master <- "/dbfs/mnt/cvm02/user/pitchaym/share/top_app_master.csv"
