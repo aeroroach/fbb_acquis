@@ -28,7 +28,7 @@ prep_data <- function(dt_input = NULL,
   
   # List of original source tables
   prof_table <- "prod_delta.dm07_sub_clnt_info"
-  app_table <- "prod_delta.dm09041_du_sum_usage_by_app_monthly"
+  app_table <- "prod_delta.dm09042_du_sum_usage_by_app_monthly"
   usage_table <- "prod_delta.dm09_mobile_day_split"
   hh_aggregation_table <- "mck_fmc.hh_aggregation"
   pack_info_table <- "prod_delta.dm26_postpaid_pack_info"
@@ -73,7 +73,7 @@ prep_data <- function(dt_input = NULL,
     tbl_cache(sc, "fil_id")
     
     app_soc %>%
-    filter(ddate >= begin_month, ddate <= end_month, application %in% top_app) %>%
+    filter(last_date >= begin_month, last_date <= end_month, application %in% top_app) %>%
     semi_join(fil_id, by = "analytic_id") %>%
     mutate(vol_sum_kb = volume_ul_kb + volume_dw_kb) -> app_soc
     
@@ -119,7 +119,7 @@ prep_data <- function(dt_input = NULL,
     tbl_cache(sc, "prof")
 
     app_soc %>%
-    filter(ddate == end_month, application %in% top_app) %>%
+    filter(last_date == end_month, application %in% top_app) %>%
     semi_join(prof, by ="analytic_id") %>%
     mutate(vol_sum_kb = volume_ul_kb + volume_dw_kb) -> app_soc
     
@@ -141,22 +141,22 @@ prep_data <- function(dt_input = NULL,
 
     app_soc %>%
     mutate(application = paste0(application, "_duration")) %>%
-    sdf_pivot(analytic_id + ddate ~ application, list(duration_sec="sum")) %>%
+    sdf_pivot(analytic_id + last_date ~ application, list(duration_sec="sum")) %>%
     na.replace(0) -> app_pivot_duration
 
     app_soc %>%
     mutate(application = paste0(application, "_count")) %>%
-    sdf_pivot(analytic_id + ddate ~ application, list(time_cnt="sum")) %>%
+    sdf_pivot(analytic_id + last_date ~ application, list(time_cnt="sum")) %>%
     na.replace(0) -> app_pivot_count
 
     app_soc %>%
     mutate(application = paste0(application, "_vol")) %>%
-    sdf_pivot(analytic_id + ddate ~ application, list(vol_sum_kb="sum")) %>%
+    sdf_pivot(analytic_id + last_date ~ application, list(vol_sum_kb="sum")) %>%
     na.replace(0) -> app_pivot_day
 
     app_pivot_duration %>%
-    full_join(app_pivot_count, by = c("analytic_id", "ddate")) %>%
-    full_join(app_pivot_day, by = c("analytic_id", "ddate"))-> app_pivot_all
+    full_join(app_pivot_count, by = c("analytic_id", "last_date")) %>%
+    full_join(app_pivot_day, by = c("analytic_id", "last_date"))-> app_pivot_all
 
     sdf_register(app_pivot_all, "app_pivot_all")
     tbl_cache(sc, "app_pivot_all")
@@ -259,7 +259,7 @@ prep_data <- function(dt_input = NULL,
     prof %>%
     left_join(pack_info, by = c("analytic_id", "ddate")) %>%
     left_join(house, by = c("analytic_id", "ddate")) %>%
-    left_join(app_pivot_all, by = c("analytic_id", "ddate")) %>%
+    left_join(app_pivot_all, by = c("analytic_id", "ddate" = "last_date")) %>%
     left_join(usage_pivot_all, by = c("analytic_id", "ddate"="month_id")) -> feature_tbl
 
     sdf_register(feature_tbl, "feature_tbl")
