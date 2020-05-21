@@ -246,7 +246,7 @@ prep_data <- function(dt_input = NULL,
     # Select relevance features ----------------------------
     prof %>% select(analytic_id, national_id, crm_sub_id, activation_date, ddate,
                  age, credit_limit, days_active, service_month, foreigner_flag, gender, 
-                 mnp_flag, master_segment_id, crm_most_usage_province, 
+                 mnp_flag, master_segment_id, 
                  handset_launchprice, handset_os, 
                  norms_net_revenue_avg_3mth_p0_p2, norms_net_revenue_gprs, norms_net_revenue_vas, norms_net_revenue_voice) -> prof
 
@@ -354,9 +354,6 @@ feat_enhance <- function(data_input,
 # DBTITLE 1,Data cleansing function
 dt_cleansing <- function (dt_input, training = T) {
   
-  # Export directory
-  top_province_export <- "/dbfs/mnt/cvm02/user/pitchaym/share/aa_top_province.csv"
-  
   # initial criteria
   dt_input %>%
   mutate(age = as.numeric(age)) %>%
@@ -370,13 +367,13 @@ dt_cleansing <- function (dt_input, training = T) {
     ft_imputer(input_cols=im_mean, output_cols=im_mean, strategy="mean") %>%
     select(analytic_id, crm_sub_id, camp_response, national_id, register_date, 
            age, handset_launchprice, credit_limit, 
-      mnp_flag, master_segment_id, crm_most_usage_province) -> mean_im
+      mnp_flag, master_segment_id) -> mean_im
   } else {
     dt_trans %>%
     ft_imputer(input_cols=im_mean, output_cols=im_mean, strategy="mean") %>%
     select(analytic_id, crm_sub_id, national_id, register_date, 
            age, handset_launchprice, credit_limit, 
-      mnp_flag, master_segment_id, crm_most_usage_province) -> mean_im
+      mnp_flag, master_segment_id) -> mean_im
   }
   
   # Unknown imputing
@@ -424,31 +421,6 @@ dt_cleansing <- function (dt_input, training = T) {
   # MNP flag
   base_clean %>%
   mutate(mnp_flag = ifelse(is.na(mnp_flag),"N" , mnp_flag)) -> base_clean
-  
-  # Checking for training and scoring process
-  if (training == T) {
-      base_clean %>%
-      filter(!is.na(crm_most_usage_province)) %>%
-      count(crm_most_usage_province) %>%
-      arrange(desc(n)) %>%
-      filter(min_rank(crm_most_usage_province) <= 30) %>%
-      collect() -> most_province
-    
-      write_csv(most_province, top_province_export)
-    
-  } else {
-    most_province <- read_csv(top_province_export)
-  }
-  
-  # Regroup province
-  most_province <- most_province$crm_most_usage_province
-  
-  base_clean %>%
-  mutate(top30_province = case_when(
-  is.na(crm_most_usage_province) ~ "Others", 
-  crm_most_usage_province %in% most_province ~ crm_most_usage_province,
-  TRUE ~ "Others")) %>%
-  select(-crm_most_usage_province) -> base_clean
   
   sdf_register(base_clean, "base_clean")
   tbl_cache(sc, "base_clean")
