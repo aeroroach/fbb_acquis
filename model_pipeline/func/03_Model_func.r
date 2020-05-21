@@ -38,7 +38,6 @@ model_training <- function (dt_input, lag_time = 4, sample_frac = 0.5) {
   dt_hex$gender <- as.factor(dt_hex$gender)
   dt_hex$handset_os <- as.factor(dt_hex$handset_os)
   dt_hex$serenade <- as.factor(dt_hex$serenade)
-  dt_hex$top30_province <- as.factor(dt_hex$top30_province)
   dt_hex$new_pack_cat <- as.factor(dt_hex$new_pack_cat)
   
   # Define relevance variables
@@ -160,7 +159,6 @@ model_scoring <- function(dt_input, fraud_cut = 0,
   dt_score_hex$gender <- as.factor(dt_score_hex$gender)
   dt_score_hex$handset_os <- as.factor(dt_score_hex$handset_os)
   dt_score_hex$serenade <- as.factor(dt_score_hex$serenade)
-  dt_score_hex$top30_province <- as.factor(dt_score_hex$top30_province)
   dt_score_hex$new_pack_cat <- as.factor(dt_score_hex$new_pack_cat)
   
   pred <- h2o.predict(object = classifier, newdata = dt_score_hex)
