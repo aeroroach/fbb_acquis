@@ -27,7 +27,8 @@ hh_gen <- function(lag_time = 1) {
   if (end_month > latest_ddate) {
     
     # Filter selected month
-    hh %>% filter(ddate == end_month) -> hh
+    hh %>% filter(ddate == end_month) %>%
+    distinct() -> hh
     
     hh %>%
     group_by(home_analytic_id, geo_home_shape_id) %>%
