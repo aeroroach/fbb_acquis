@@ -378,7 +378,7 @@ dt_cleansing <- function (dt_input, training = T) {
   
   # Unknown imputing
   dt_trans %>%
-  select(analytic_id, gender, handset_os, new_pack_cat) %>%
+  select(analytic_id, register_date, gender, handset_os, new_pack_cat) %>%
   mutate(gender = case_when(
     gender %in% c("Male", "Female") ~ gender,
     TRUE ~ "unknown"
@@ -387,7 +387,7 @@ dt_cleansing <- function (dt_input, training = T) {
  
   # Zero imputing
   dt_trans %>%
-  select(analytic_id, days_active, service_month, norms_net_revenue_avg_3mth_p0_p2:norms_net_revenue_voice, 
+  select(analytic_id, register_date, days_active, service_month, norms_net_revenue_avg_3mth_p0_p2:norms_net_revenue_voice, 
         data_3g_usage_mb:data_traffic_subs_mb, mou_ic_total:distinct_out_number,
         total_household_arpu:`07_Sun_prime_mean_voice_out`, 
         norms_net_revenue_avg_3mth_p0_p2_p1:distinct_out_number_p2
@@ -396,8 +396,8 @@ dt_cleansing <- function (dt_input, training = T) {
   
   # Joining back
   mean_im %>%
-  left_join(unknown_im, by = "analytic_id") %>%
-  left_join(zero_im, by = "analytic_id") -> base_clean
+  left_join(unknown_im, by = c("analytic_id", "register_date")) %>%
+  left_join(zero_im, by = c("analytic_id", "register_date")) -> base_clean
   
   # Regroup ----------------------------
   
