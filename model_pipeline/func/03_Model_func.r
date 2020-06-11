@@ -27,7 +27,7 @@ model_training <- function (dt_input, lag_time = 4, sample_frac = 0.5) {
   
   dt_down <- sdf_bind_rows(dt_0, dt_1)
   
-  dt_hex <- as_h2o_frame(sc, dt_down)
+  dt_hex <- hc$asH2OFrame(dt_down)
   
   # Casting ---------------------
   # Label
@@ -153,7 +153,7 @@ model_scoring <- function(dt_input, fraud_cut = 0,
   print(paste("Total rows of data after filter :", temp))
   
   # Casting variables
-  dt_score_hex <- as_h2o_frame(sc, dt_score)
+  dt_score_hex <- hc$asH2OFrame(dt_score)
   
   dt_score_hex$mnp_flag <- as.factor(dt_score_hex$mnp_flag)
   dt_score_hex$gender <- as.factor(dt_score_hex$gender)
