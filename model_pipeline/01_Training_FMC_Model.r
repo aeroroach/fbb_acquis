@@ -131,6 +131,11 @@ library(rsparkling)
 
 # COMMAND ----------
 
+h2oConf <- H2OConf()
+hc <- H2OContext.getOrCreate(h2oConf)
+
+# COMMAND ----------
+
 library(mlflow)
 install_mlflow()
 
